@@ -1,10 +1,13 @@
 import { attr, Observable, observable } from "@microsoft/fast-element";
+import uniqueId from "lodash-es/uniqueId";
 import { ListboxOption } from "../listbox-option/listbox-option";
 import { ARIAGlobalStatesAndProperties } from "../patterns/aria-global";
 import { StartEnd } from "../patterns/start-end";
 import { applyMixins } from "../utilities/apply-mixins";
-import { SelectPosition, SelectRole } from "./select.options";
-import { FormAssociatedSelect } from "./select.form-associated";
+import { SelectPosition, SelectRole } from "../select/select.options";
+import { FormAssociatedCombobox } from "./combobox.form-associated";
+
+const escapeRegex = /[.*+\-?^${}()|[\]\\]/g;
 
 /**
  * A Select Custom HTML Element.
@@ -12,7 +15,7 @@ import { FormAssociatedSelect } from "./select.form-associated";
  *
  * @public
  */
-export class Select extends FormAssociatedSelect {
+export class Combobox extends FormAssociatedCombobox {
     /**
      * The open attribute.
      *
@@ -20,6 +23,10 @@ export class Select extends FormAssociatedSelect {
      */
     @attr({ attribute: "open", mode: "boolean" })
     public open: boolean = false;
+
+    @attr({ attribute: "autocomplete", mode: "fromView" })
+    autocomplete: "inline" | "list" | "both" | "none" | void;
+
     protected openChanged() {
         this.ariaExpanded = this.open ? "true" : "false";
         if (this.open) {
@@ -29,7 +36,11 @@ export class Select extends FormAssociatedSelect {
         }
     }
 
+    private autocompleteOptions: ListboxOption[];
+
     private indexWhenOpened: number;
+
+    public listboxId: string = uniqueId("listbox-");
 
     /**
      * The internal value property.
@@ -82,16 +93,36 @@ export class Select extends FormAssociatedSelect {
         }
     }
 
+    public control: HTMLInputElement;
+
     private updateValue(shouldEmit?: boolean) {
         if (this.$fastController.isConnected) {
             this.value = this.firstSelectedOption ? this.firstSelectedOption.value : "";
-            this.displayValue = this.firstSelectedOption
+            this.control.value = this.firstSelectedOption
                 ? this.firstSelectedOption.textContent || this.firstSelectedOption.value
                 : this.value;
         }
 
         if (shouldEmit) {
             this.$emit("change");
+        }
+    }
+
+    @observable
+    public filteredOptions: ListboxOption[];
+    public filteredOptionsChanged(prev, next): void {
+        if (this.autocomplete)
+            this.options.forEach(o => {
+                o.hidden = !next.includes(o);
+            });
+
+        if (this.filteredOptions.length) {
+            const selectedIndex = this.options.findIndex(o =>
+                o.isSameNode(this.filteredOptions[0])
+            );
+            if (selectedIndex > -1) {
+                this.selectedIndex = selectedIndex;
+            }
         }
     }
 
@@ -103,9 +134,31 @@ export class Select extends FormAssociatedSelect {
      *
      * @internal
      */
-    public selectedIndexChanged(prev, next): void {
+    public async selectedIndexChanged(prev: number, next: number) {
+        if (!this.filteredOptions) {
+            return;
+        }
+        if (next > -1 && this.filteredOptions.length > 0) {
+            const nextOption = this.options[next];
+            if (nextOption && (nextOption.disabled || nextOption.hidden)) {
+                this.selectedIndex = prev;
+                return;
+            }
+        }
         super.selectedIndexChanged(prev, next);
-        this.updateValue();
+        // this.updateValue();
+    }
+
+    public selectNextOption(): void {
+        if (!this.filteredOptions) {
+            return;
+        }
+
+        super.selectNextOption();
+        const lastFilteredOption = this.filteredOptions[this.filteredOptions.length - 1];
+        if (this.selectedIndex > this.options.indexOf(lastFilteredOption)) {
+            this.selectedIndex -= 1;
+        }
     }
 
     /**
@@ -174,14 +227,6 @@ export class Select extends FormAssociatedSelect {
     public maxHeight: number = 0;
 
     /**
-     * The value displayed on the button.
-     *
-     * @public
-     */
-    @observable
-    public displayValue: string = "";
-
-    /**
      * Synchronize the `aria-disabled` property when the `disabled` property changes.
      *
      * @param prev - The previous disabled value
@@ -214,6 +259,12 @@ export class Select extends FormAssociatedSelect {
      * @internal
      */
     public clickHandler(e: MouseEvent): boolean | void {
+        // const composedPath = e.composedPath();
+
+        // if (composedPath.includes(this.valueInput)) {
+        //     console.log(composedPath);
+        // }
+
         // do nothing if the select is disabled
         if (this.disabled) {
             return;
@@ -257,7 +308,7 @@ export class Select extends FormAssociatedSelect {
             return;
         }
 
-        if (!this.options.length || !this.options.includes(focusTarget as ListboxOption)) {
+        if (!this.options || !this.options.includes(focusTarget as ListboxOption)) {
             this.open = false;
         }
     }
@@ -272,6 +323,7 @@ export class Select extends FormAssociatedSelect {
      */
     public slottedOptionsChanged(prev, next): void {
         super.slottedOptionsChanged(prev, next);
+        this.resetFilteredOptions();
         this.setProxyOptions();
         this.updateValue();
     }
@@ -307,13 +359,13 @@ export class Select extends FormAssociatedSelect {
         const key = e.key || e.key.charCodeAt(0);
 
         switch (key) {
-            case " ": {
-                if (this.typeAheadExpired) {
-                    e.preventDefault();
-                    this.open = !this.open;
-                }
-                break;
-            }
+            // case " ": {
+            //     if (this.typeAheadExpired) {
+            //         e.preventDefault();
+            //         this.open = !this.open;
+            //     }
+            //     break;
+            // }
 
             case "Enter": {
                 e.preventDefault();
@@ -346,6 +398,42 @@ export class Select extends FormAssociatedSelect {
         return true;
     }
 
+    public handleTypeAhead = () => void 0;
+
+    public handleTextInput(e: InputEvent): void {
+        this.open = true;
+        this.typeaheadBuffer = this.control.value;
+    }
+
+    public resetFilteredOptions(): void {
+        this.filteredOptions = this.options;
+    }
+
+    public typeaheadBufferChanged(prev: string = "", next: string): void {
+        const pattern = this.typeaheadBuffer.replace(escapeRegex, "\\$&");
+        const re = new RegExp(`^${pattern}`, "gi");
+
+        this.filteredOptions = this.options.filter(o => o.text.match(re));
+
+        // console.log(this.typeaheadBuffer.length, this.firstSelectedOption.text.length);
+        // this.control.focus();
+
+        if (
+            this.filteredOptions.length &&
+            this.autocomplete === "inline" &&
+            next.length > prev.length
+        ) {
+            // console.log(this.typeaheadBuffer.length);
+            this.control.focus();
+            this.control.value = this.firstSelectedOption.text;
+            this.control.setSelectionRange(
+                next.length,
+                this.control.value.length,
+                "backward"
+            );
+        }
+    }
+
     public connectedCallback() {
         super.connectedCallback();
         this.forcedPosition = !!this.positionAttribute;
@@ -357,7 +445,7 @@ export class Select extends FormAssociatedSelect {
  *
  * @public
  */
-export class DelegatesARIASelect {
+export class DelegatesARIACombobox {
     /**
      * See {@link https://www.w3.org/WAI/PF/aria/roles#button} for more information
      * @public
@@ -375,6 +463,15 @@ export class DelegatesARIASelect {
      */
     @attr({ attribute: "aria-pressed", mode: "fromView" })
     public ariaPressed: "true" | "false" | "mixed" | undefined;
+
+    /**
+     * See {@link https://w3c.github.io/aria/#aria-autocomplete} for more information
+     * @public
+     * @remarks
+     * HTML Attribute: aria-autocomplete
+     */
+    @attr({ attribute: "aria-autocomplete", mode: "fromView" })
+    public ariaAutocomplete: "inline" | "list" | "both" | "none" | undefined;
 }
 
 /**
@@ -383,11 +480,11 @@ export class DelegatesARIASelect {
  * TODO: https://github.com/microsoft/fast/issues/3317
  * @internal
  */
-export interface DelegatesARIASelect extends ARIAGlobalStatesAndProperties {}
-applyMixins(DelegatesARIASelect, ARIAGlobalStatesAndProperties);
+export interface DelegatesARIACombobox extends ARIAGlobalStatesAndProperties {}
+applyMixins(DelegatesARIACombobox, ARIAGlobalStatesAndProperties);
 
 /**
  * @internal
  */
-export interface Select extends StartEnd, DelegatesARIASelect {}
-applyMixins(Select, StartEnd, DelegatesARIASelect);
+export interface Combobox extends StartEnd, DelegatesARIACombobox {}
+applyMixins(Combobox, StartEnd, DelegatesARIACombobox);

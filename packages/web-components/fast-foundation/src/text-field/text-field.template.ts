@@ -4,7 +4,7 @@ import { whitespaceFilter } from "../utilities";
 import { TextField } from "./text-field";
 
 /**
- * The template for the {@link @microsoft/fast-foundation#(TextField:class)} component.
+ * The template for the {@link @microsoft/fast-foundation#(TextField:class)|TextField} component.
  * @public
  */
 export const TextFieldTemplate = html<TextField>`

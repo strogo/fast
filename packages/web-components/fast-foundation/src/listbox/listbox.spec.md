@@ -6,17 +6,17 @@ The `listbox` component is a component that provides a navigatable list of optio
 
 ### Background
 
-This component is used as a building block for other components in this library that need a way for users to choose distinct options from a list. The goal for `listbox` is to handle implementation details related to the [`listbox`](https://www.w3.org/TR/wai-aria-practices-1.1/#Listbox) and [`combobox`](https://www.w3.org/TR/wai-aria-practices-1.1/#combobox) aria roles.
+This component is used as a building block for other components in this library that need a way for users to choose distinct options from a list. The goal for `listbox` is to handle implementation details related to the [`listbox`](https://w3c.github.io/aria-practices/#Listbox) and [`combobox`](https://w3c.github.io/aria-practices/#combobox) aria roles.
 
 ### Features
 
 - **Single and multiple selection mode**: Users can choose one or multiple options when the `multiple` attribute is present. *(Note: While our implementation currently only supports single selection mode, multiple selection mode is being tracked in [issue #4190](https://github.com/microsoft/fast/issues/4190).)*
-- **Keyboard navigation and type-ahead**: When the `listbox` is focused, keyboard navigation with the arrow keys will cycle through the available options. Type-ahead is also supported. See [Keyboard Interaction](https://www.w3.org/TR/wai-aria-practices-1.1/#listbox_kbd_interaction) for more details.
+- **Keyboard navigation and type-ahead**: When the `listbox` is focused, keyboard navigation with the arrow keys will cycle through the available options. Type-ahead is also supported. See [Keyboard Interaction](https://w3c.github.io/aria-practices/#listbox_kbd_interaction) for more details.
 - Users can choose one or multiple options when the `multiple` attribute is present.
 
 ### Prior Art/Examples
 
-- [W3 Example](https://www.w3.org/TR/wai-aria-practices-1.1/examples/listbox/listbox-scrollable.html)
+- [W3 Example](https://w3c.github.io/aria-practices/examples/listbox/listbox-scrollable.html)
 
 ---
 
@@ -77,7 +77,7 @@ This component is used as a building block for other components in this library 
 
 ### Accessibility
 
-*Listbox* is RTL compliant and supports the following aria best practices for listbox [W3C aria-practices](https://www.w3.org/TR/wai-aria-practices-1.1/#Listbox).
+*Listbox* is RTL compliant and supports the following aria best practices for listbox [W3C aria-practices](https://w3c.github.io/aria-practices/#Listbox).
 
 ### Test Plan
 
