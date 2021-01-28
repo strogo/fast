@@ -920,6 +920,8 @@ export class Menu extends FASTElement {
     // @internal (undocumented)
     handleMenuKeyDown(e: KeyboardEvent): void | boolean;
     // @internal (undocumented)
+    readonly isNestedMenu: () => boolean;
+    // @internal (undocumented)
     items: HTMLSlotElement;
     }
 
