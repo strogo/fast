@@ -949,7 +949,7 @@ export class MenuItem extends FASTElement {
     // @internal (undocumented)
     submenuLoaded: () => void;
     // @internal
-    subMenuRegion: AnchoredRegion;
+    submenuRegion: AnchoredRegion;
 }
 
 // @internal
